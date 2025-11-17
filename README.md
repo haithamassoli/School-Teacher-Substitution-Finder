@@ -1,75 +1,150 @@
-# React + TypeScript + Vite
+# Manal - نظام إدارة البدائل المدرسية
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Manal** is a school teacher substitution management system designed for Arabic-speaking educational institutions. The application helps administrators manage teachers, class schedules, and quickly find available substitute teachers when someone is absent.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Substitution Finder**: Quickly identify available teachers for any period when a teacher is absent
+- **Teacher Management**: Add, edit, and remove teachers from the system
+- **Class & Section Management**: Organize school structure with classes and sections
+- **Schedule Management**: Assign teachers to specific sections and periods
+- **Data Export/Import**: Backup and restore all data for safety
+- **RTL Interface**: Full Arabic language support with right-to-left layout
+- **Offline-First**: All data stored locally in browser (no backend required)
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- **React 19** with React Compiler for optimized performance
+- **TypeScript** with strict type checking
+- **Vite 7** for fast development and optimized builds
+- **Tailwind CSS 4** for styling
+- **Radix UI** for accessible component primitives
+- **shadcn/ui** component architecture
+- **lucide-react** for icons
 
-Note: This will impact Vite dev & build performances.
+## Getting Started
 
-## Expanding the ESLint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js (v18 or higher recommended)
+- pnpm (or npm/yarn)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Start development server with HMR
+pnpm dev
 ```
+
+The application will be available at `http://localhost:5173`
+
+### Build
+
+```bash
+# Build for production (includes TypeScript compilation)
+pnpm build
+
+# Preview production build
+pnpm preview
+```
+
+### Linting
+
+```bash
+# Lint code
+pnpm lint
+```
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── classes/         # Class and section management components
+│   ├── schedule/        # Schedule management components
+│   ├── substitution/    # Substitution finder component
+│   ├── teachers/        # Teacher management components
+│   └── ui/              # Reusable UI components (shadcn/ui)
+├── lib/
+│   ├── storage.ts       # localStorage-based data persistence layer
+│   ├── types.ts         # TypeScript type definitions
+│   └── utils.ts         # Utility functions
+└── App.tsx              # Main application with tab navigation
+```
+
+## Data Model
+
+The application manages four core entities:
+
+- **Teachers**: Individual instructors in the system
+- **Classes**: Grade levels (e.g., "الصف السادس")
+- **Sections**: Specific class sections (e.g., "الصف السادس أ", "الصف السادس ب")
+- **Schedule Entries**: Assignments of teachers to specific sections and periods (7 periods per day)
+
+### Key Relationships
+
+- Each Section belongs to one Class
+- The schedule assigns one Teacher to one Section for one Period
+- Deleting a Teacher cascades to remove their schedule entries
+- Deleting a Class cascades to remove all its Sections and their schedule entries
+- Deleting a Section cascades to remove all its schedule entries
+
+## How It Works
+
+### Substitution Finding Algorithm
+
+The core functionality finds available substitute teachers:
+
+1. User selects a section and period
+2. System shows the assigned teacher for that slot
+3. When marking a teacher as absent, the system:
+   - Fetches all teachers from storage
+   - Gets all schedule entries for the specified period
+   - Identifies busy teachers (those with assignments in that period)
+   - Returns available teachers who can substitute
+
+This real-time availability check is the primary value proposition of the application.
+
+## Data Persistence
+
+- **Storage**: All data is stored in browser localStorage
+- **No Backend**: Fully client-side application
+- **No Authentication**: Single-user application model
+- **Backups**: Users should regularly use the export/import feature to backup data
+
+## Important Notes
+
+- **React Compiler is enabled**: Uses `babel-plugin-react-compiler` which may impact Vite dev/build performance
+- **Arabic-First Design**: The entire UI is designed for RTL layout
+- **7 Periods Per Day**: Currently hardcoded (can be customized in `src/lib/types.ts`)
+- **Browser Compatibility**: Requires modern browser with localStorage support
+
+## Configuration
+
+Path aliases are configured in `vite.config.ts`:
+- `@/` maps to `src/` directory
+
+TypeScript configuration is split into:
+- `tsconfig.app.json` - Application code configuration
+- `tsconfig.node.json` - Build tooling configuration
+
+## Contributing
+
+When working on this project:
+
+1. Follow the existing component patterns and TypeScript interfaces
+2. Maintain RTL compatibility in all UI components
+3. Update `src/lib/types.ts` for any data model changes
+4. Ensure all CRUD operations go through the storage layer (`src/lib/storage.ts`)
+5. Test cascade deletions to prevent orphaned data
+
+## License
+
+[Your license here]
