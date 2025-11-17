@@ -4,9 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TeacherList } from "@/components/teachers/TeacherList";
 import { ClassSectionManager } from "@/components/classes/ClassSectionManager";
 import { ScheduleManager } from "@/components/schedule/ScheduleManager";
+import { ScheduleSwap } from "@/components/schedule/ScheduleSwap";
 import { SubstitutionFinder } from "@/components/substitution/SubstitutionFinder";
 import { TaskTracker } from "@/components/tasks/TaskTracker";
-import { Search, Users, Layers, Calendar, GraduationCap, ClipboardCheck } from "lucide-react";
+import { Search, Users, Layers, Calendar, GraduationCap, ClipboardCheck, ArrowLeftRight } from "lucide-react";
 
 function App() {
   const [activeTab, setActiveTab] = useState("substitution");
@@ -41,7 +42,7 @@ function App() {
             >
               {/* Tab Navigation */}
               <div className="border-b bg-muted/30 overflow-x-auto">
-                <TabsList className="w-full h-auto p-2 bg-transparent grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                <TabsList className="w-full h-auto p-2 bg-transparent grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                   <TabsTrigger
                     value="substitution"
                     className="flex-col sm:flex-row gap-2 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -49,6 +50,15 @@ function App() {
                     <Search className="h-5 w-5" />
                     <span className="text-xs sm:text-sm font-semibold">
                       البحث عن بديل
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="swap"
+                    className="flex-col sm:flex-row gap-2 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <ArrowLeftRight className="h-5 w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">
+                      تبديل الجداول
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
@@ -94,6 +104,9 @@ function App() {
               <div className="min-h-[600px]">
                 <TabsContent value="substitution" className="m-0">
                   <SubstitutionFinder />
+                </TabsContent>
+                <TabsContent value="swap" className="m-0">
+                  <ScheduleSwap />
                 </TabsContent>
                 <TabsContent value="teachers" className="m-0">
                   <TeacherList />
