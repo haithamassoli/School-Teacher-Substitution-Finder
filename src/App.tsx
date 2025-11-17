@@ -7,7 +7,15 @@ import { ScheduleManager } from "@/components/schedule/ScheduleManager";
 import { ScheduleSwap } from "@/components/schedule/ScheduleSwap";
 import { SubstitutionFinder } from "@/components/substitution/SubstitutionFinder";
 import { TaskTracker } from "@/components/tasks/TaskTracker";
-import { Search, Users, Layers, Calendar, GraduationCap, ClipboardCheck, ArrowLeftRight } from "lucide-react";
+import {
+  Search,
+  Users,
+  Layers,
+  Calendar,
+  GraduationCap,
+  ClipboardCheck,
+  ArrowLeftRight,
+} from "lucide-react";
 
 function App() {
   const [activeTab, setActiveTab] = useState("substitution");
@@ -21,7 +29,7 @@ function App() {
             <GraduationCap className="h-8 w-8" />
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">
-                نظام منال المدرسي الذكي
+                نظام المنال المدرسي الذكي
               </h1>
               <p className="text-sm opacity-90 mt-1">
                 إدارة المعلمين والجداول والبدلاء وتبديل الحصص ومتابعة المهام
@@ -128,7 +136,9 @@ function App() {
 
       {/* Footer */}
       <footer className="border-t mt-8 py-6 text-center text-sm text-muted-foreground">
-        <p>© 2025 نظام منال المدرسي - جميع الحقوق محفوظة</p>
+        <p>
+          © {new Date().getFullYear()} نظام المنال المدرسي - جميع الحقوق محفوظة
+        </p>
       </footer>
     </div>
   );
