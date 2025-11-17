@@ -224,7 +224,7 @@ export function ScheduleManager() {
                         {periods.map((period) => (
                           <TableRow key={period.number}>
                             <TableCell className="font-semibold text-center border-l bg-muted/30">
-                              {/* <Badge variant="outline">{period.label}</Badge> */}
+                              <Badge variant="outline">{period.label}</Badge>
                             </TableCell>
                             {days.map((day) => {
                               const assignedTeacher = getTeacherForPeriodAndDay(
