@@ -61,7 +61,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
   // Task filtering state
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [taskCompletionFilter, setTaskCompletionFilter] = useState<TaskCompletionFilter>("all");
-  const [selectedTaskForTeacherFilter, setSelectedTaskForTeacherFilter] = useState<string>("");
+  const [selectedTaskForTeacherFilter, setSelectedTaskForTeacherFilter] = useState<string>("all");
 
   // Notes dialog state
   const [notesDialog, setNotesDialog] = useState<{
@@ -217,7 +217,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
     }
 
     // Apply task-based teacher filter (show only teachers who completed a specific task)
-    if (selectedTaskForTeacherFilter) {
+    if (selectedTaskForTeacherFilter && selectedTaskForTeacherFilter !== "all") {
       filtered = filtered.filter((t) => {
         const completion = t.completions.get(selectedTaskForTeacherFilter);
         return completion?.completed === true;
@@ -435,7 +435,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                     <SelectValue placeholder="جميع المعلمين" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">جميع المعلمين</SelectItem>
+                    <SelectItem value="all">جميع المعلمين</SelectItem>
                     {tasks.map((task) => (
                       <SelectItem key={task.id} value={task.id}>
                         {task.name}
