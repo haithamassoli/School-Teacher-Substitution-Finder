@@ -5,7 +5,8 @@ import { TeacherList } from "@/components/teachers/TeacherList";
 import { ClassSectionManager } from "@/components/classes/ClassSectionManager";
 import { ScheduleManager } from "@/components/schedule/ScheduleManager";
 import { SubstitutionFinder } from "@/components/substitution/SubstitutionFinder";
-import { Search, Users, Layers, Calendar, GraduationCap } from "lucide-react";
+import { TaskTracker } from "@/components/tasks/TaskTracker";
+import { Search, Users, Layers, Calendar, GraduationCap, ClipboardCheck } from "lucide-react";
 
 function App() {
   const [activeTab, setActiveTab] = useState("substitution");
@@ -40,7 +41,7 @@ function App() {
             >
               {/* Tab Navigation */}
               <div className="border-b bg-muted/30 overflow-x-auto">
-                <TabsList className="w-full h-auto p-2 bg-transparent grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <TabsList className="w-full h-auto p-2 bg-transparent grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                   <TabsTrigger
                     value="substitution"
                     className="flex-col sm:flex-row gap-2 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -77,6 +78,15 @@ function App() {
                       الجدول الدراسي
                     </span>
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="tasks"
+                    className="flex-col sm:flex-row gap-2 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <ClipboardCheck className="h-5 w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">
+                      متابعة المهام
+                    </span>
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -93,6 +103,9 @@ function App() {
                 </TabsContent>
                 <TabsContent value="schedule" className="m-0">
                   <ScheduleManager />
+                </TabsContent>
+                <TabsContent value="tasks" className="m-0">
+                  <TaskTracker />
                 </TabsContent>
               </div>
             </Tabs>

@@ -17,8 +17,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
       manifest: {
-        name: "منال - نظام بديل المعلمين",
-        short_name: "منال",
+        name: "نظام بديل المعلمين",
+        short_name: "نظام إدارة البدلاء",
         description: "نظام إدارة بديل المعلمين للمدارس",
         theme_color: "#3b82f6",
         background_color: "#ffffff",

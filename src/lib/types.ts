@@ -42,6 +42,29 @@ export interface ScheduleEntry {
 }
 
 /**
+ * Represents a trackable task for teachers (e.g., "دفتر الحضور", "التقييم الأول")
+ */
+export interface Task {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: number;
+}
+
+/**
+ * Represents a completion record for a specific teacher and task
+ */
+export interface TaskCompletion {
+  id: string;
+  taskId: string;
+  teacherId: string;
+  completed: boolean;
+  completedAt?: number; // timestamp when marked complete
+  notes?: string; // optional notes when marking complete
+  createdAt: number;
+}
+
+/**
  * Helper type for displaying section with class info
  */
 export interface SectionWithClass extends Section {
@@ -55,6 +78,35 @@ export interface ScheduleEntryWithDetails extends ScheduleEntry {
   teacherName: string;
   sectionName: string;
   className: string;
+}
+
+/**
+ * Helper type for displaying task completion with details
+ */
+export interface TaskCompletionWithDetails extends TaskCompletion {
+  taskName: string;
+  teacherName: string;
+}
+
+/**
+ * Helper type for displaying task with completion statistics
+ */
+export interface TaskWithCompletions extends Task {
+  completions: TaskCompletion[];
+  completedCount: number;
+  totalTeachers: number;
+  completionPercentage: number;
+}
+
+/**
+ * Helper type for teacher with task completion info (for grid view)
+ */
+export interface TeacherWithCompletions {
+  teacher: Teacher;
+  completions: Map<string, TaskCompletion>; // taskId -> TaskCompletion
+  completedCount: number;
+  totalTasks: number;
+  completionPercentage: number;
 }
 
 /**

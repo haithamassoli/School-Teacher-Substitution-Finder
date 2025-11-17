@@ -6,6 +6,11 @@ import type {
   SectionWithClass,
   ScheduleEntryWithDetails,
   AvailableTeacher,
+  Task,
+  TaskCompletion,
+  TaskCompletionWithDetails,
+  TaskWithCompletions,
+  TeacherWithCompletions,
 } from "./types";
 
 // Storage keys
@@ -14,6 +19,8 @@ const STORAGE_KEYS = {
   CLASSES: "school_classes",
   SECTIONS: "school_sections",
   SCHEDULE: "school_schedule",
+  TASKS: "school_tasks",
+  TASK_COMPLETIONS: "school_task_completions",
 } as const;
 
 // ============================================================================
@@ -64,6 +71,13 @@ export const teacherStorage = {
     };
     teachers.push(newTeacher);
     saveToStorage(STORAGE_KEYS.TEACHERS, teachers);
+
+    // Auto-create task completions for all existing tasks
+    const allTasks = taskStorage.getAll();
+    allTasks.forEach((task) => {
+      taskCompletionStorage.create(task.id, newTeacher.id, false);
+    });
+
     return newTeacher;
   },
 
@@ -85,8 +99,11 @@ export const teacherStorage = {
     const filtered = teachers.filter((t) => t.id !== id);
     if (filtered.length === teachers.length) return false;
 
-    // Also delete all schedule entries for this teacher
+    // Cascade delete all schedule entries for this teacher
     scheduleStorage.deleteByTeacherId(id);
+
+    // Cascade delete all task completions for this teacher
+    taskCompletionStorage.deleteByTeacherId(id);
 
     saveToStorage(STORAGE_KEYS.TEACHERS, filtered);
     return true;
@@ -343,6 +360,276 @@ export const scheduleStorage = {
 };
 
 // ============================================================================
+// Task Operations
+// ============================================================================
+
+export const taskStorage = {
+  getAll(): Task[] {
+    return getFromStorage<Task>(STORAGE_KEYS.TASKS);
+  },
+
+  getById(id: string): Task | undefined {
+    return this.getAll().find((t) => t.id === id);
+  },
+
+  create(name: string, description?: string): Task {
+    const tasks = this.getAll();
+    const newTask: Task = {
+      id: generateId(),
+      name: name.trim(),
+      description: description?.trim(),
+      createdAt: Date.now(),
+    };
+    tasks.push(newTask);
+    saveToStorage(STORAGE_KEYS.TASKS, tasks);
+
+    // Auto-create task completions for all existing teachers
+    const allTeachers = teacherStorage.getAll();
+    allTeachers.forEach((teacher) => {
+      taskCompletionStorage.create(newTask.id, teacher.id, false);
+    });
+
+    return newTask;
+  },
+
+  update(id: string, name: string, description?: string): Task | null {
+    const tasks = this.getAll();
+    const index = tasks.findIndex((t) => t.id === id);
+    if (index === -1) return null;
+
+    tasks[index] = {
+      ...tasks[index],
+      name: name.trim(),
+      description: description?.trim(),
+    };
+    saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    return tasks[index];
+  },
+
+  delete(id: string): boolean {
+    const tasks = this.getAll();
+    const filtered = tasks.filter((t) => t.id !== id);
+    if (filtered.length === tasks.length) return false;
+
+    // Cascade delete all completions for this task
+    taskCompletionStorage.deleteByTaskId(id);
+
+    saveToStorage(STORAGE_KEYS.TASKS, filtered);
+    return true;
+  },
+
+  getWithCompletions(taskId: string): TaskWithCompletions | null {
+    const task = this.getById(taskId);
+    if (!task) return null;
+
+    const completions = taskCompletionStorage.getByTaskId(taskId);
+    const completedCount = completions.filter((c) => c.completed).length;
+    const totalTeachers = teacherStorage.getAll().length;
+
+    return {
+      ...task,
+      completions,
+      completedCount,
+      totalTeachers,
+      completionPercentage:
+        totalTeachers > 0 ? Math.round((completedCount / totalTeachers) * 100) : 0,
+    };
+  },
+
+  getAllWithCompletions(): TaskWithCompletions[] {
+    const tasks = this.getAll();
+    return tasks
+      .map((task) => this.getWithCompletions(task.id))
+      .filter((t): t is TaskWithCompletions => t !== null);
+  },
+};
+
+// ============================================================================
+// Task Completion Operations
+// ============================================================================
+
+export const taskCompletionStorage = {
+  getAll(): TaskCompletion[] {
+    return getFromStorage<TaskCompletion>(STORAGE_KEYS.TASK_COMPLETIONS);
+  },
+
+  getById(id: string): TaskCompletion | undefined {
+    return this.getAll().find((tc) => tc.id === id);
+  },
+
+  getByTaskId(taskId: string): TaskCompletion[] {
+    return this.getAll().filter((tc) => tc.taskId === taskId);
+  },
+
+  getByTeacherId(teacherId: string): TaskCompletion[] {
+    return this.getAll().filter((tc) => tc.teacherId === teacherId);
+  },
+
+  getByTaskAndTeacher(
+    taskId: string,
+    teacherId: string
+  ): TaskCompletion | undefined {
+    return this.getAll().find(
+      (tc) => tc.taskId === taskId && tc.teacherId === teacherId
+    );
+  },
+
+  create(taskId: string, teacherId: string, completed: boolean): TaskCompletion {
+    const completions = this.getAll();
+    const newCompletion: TaskCompletion = {
+      id: generateId(),
+      taskId,
+      teacherId,
+      completed,
+      completedAt: completed ? Date.now() : undefined,
+      createdAt: Date.now(),
+    };
+    completions.push(newCompletion);
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, completions);
+    return newCompletion;
+  },
+
+  update(
+    id: string,
+    completed: boolean,
+    notes?: string
+  ): TaskCompletion | null {
+    const completions = this.getAll();
+    const index = completions.findIndex((tc) => tc.id === id);
+    if (index === -1) return null;
+
+    completions[index] = {
+      ...completions[index],
+      completed,
+      completedAt: completed ? Date.now() : undefined,
+      notes: notes?.trim(),
+    };
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, completions);
+    return completions[index];
+  },
+
+  toggleCompletion(
+    taskId: string,
+    teacherId: string,
+    notes?: string
+  ): TaskCompletion {
+    const existing = this.getByTaskAndTeacher(taskId, teacherId);
+
+    if (existing) {
+      // Toggle existing completion
+      return this.update(existing.id, !existing.completed, notes) || existing;
+    } else {
+      // Create new completion as completed
+      const newCompletion = this.create(taskId, teacherId, true);
+      if (notes) {
+        return this.update(newCompletion.id, true, notes) || newCompletion;
+      }
+      return newCompletion;
+    }
+  },
+
+  delete(id: string): boolean {
+    const completions = this.getAll();
+    const filtered = completions.filter((tc) => tc.id !== id);
+    if (filtered.length === completions.length) return false;
+
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, filtered);
+    return true;
+  },
+
+  deleteByTaskId(taskId: string): void {
+    const completions = this.getAll();
+    const filtered = completions.filter((tc) => tc.taskId !== taskId);
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, filtered);
+  },
+
+  deleteByTeacherId(teacherId: string): void {
+    const completions = this.getAll();
+    const filtered = completions.filter((tc) => tc.teacherId !== teacherId);
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, filtered);
+  },
+
+  getAllWithDetails(): TaskCompletionWithDetails[] {
+    const completions = this.getAll();
+    const tasks = taskStorage.getAll();
+    const teachers = teacherStorage.getAll();
+
+    return completions.map((completion) => {
+      const task = tasks.find((t) => t.id === completion.taskId);
+      const teacher = teachers.find((t) => t.id === completion.teacherId);
+
+      return {
+        ...completion,
+        taskName: task?.name || "غير معروف",
+        teacherName: teacher?.name || "غير معروف",
+      };
+    });
+  },
+
+  // Bulk operations
+  markAllCompleteForTask(taskId: string): void {
+    const completions = this.getAll();
+    const updated = completions.map((tc) => {
+      if (tc.taskId === taskId && !tc.completed) {
+        return {
+          ...tc,
+          completed: true,
+          completedAt: Date.now(),
+        };
+      }
+      return tc;
+    });
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, updated);
+  },
+
+  resetAllForTask(taskId: string): void {
+    const completions = this.getAll();
+    const updated = completions.map((tc) => {
+      if (tc.taskId === taskId && tc.completed) {
+        return {
+          ...tc,
+          completed: false,
+          completedAt: undefined,
+          notes: undefined,
+        };
+      }
+      return tc;
+    });
+    saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, updated);
+  },
+
+  // Get teachers with their completion data for grid view
+  getTeachersWithCompletions(): TeacherWithCompletions[] {
+    const teachers = teacherStorage.getAll();
+    const tasks = taskStorage.getAll();
+    const allCompletions = this.getAll();
+
+    return teachers.map((teacher) => {
+      const teacherCompletions = allCompletions.filter(
+        (tc) => tc.teacherId === teacher.id
+      );
+
+      const completionsMap = new Map<string, TaskCompletion>();
+      teacherCompletions.forEach((tc) => {
+        completionsMap.set(tc.taskId, tc);
+      });
+
+      const completedCount = teacherCompletions.filter((tc) => tc.completed).length;
+      const totalTasks = tasks.length;
+
+      return {
+        teacher,
+        completions: completionsMap,
+        completedCount,
+        totalTasks,
+        completionPercentage:
+          totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0,
+      };
+    });
+  },
+};
+
+// ============================================================================
 // Substitution Finder Logic
 // ============================================================================
 
@@ -402,6 +689,8 @@ export function exportData(): string {
     classes: classStorage.getAll(),
     sections: sectionStorage.getAll(),
     schedule: scheduleStorage.getAll(),
+    tasks: taskStorage.getAll(),
+    taskCompletions: taskCompletionStorage.getAll(),
     exportedAt: new Date().toISOString(),
   };
   return JSON.stringify(data, null, 2);
@@ -418,6 +707,8 @@ export function importData(jsonString: string): boolean {
     if (data.classes) saveToStorage(STORAGE_KEYS.CLASSES, data.classes);
     if (data.sections) saveToStorage(STORAGE_KEYS.SECTIONS, data.sections);
     if (data.schedule) saveToStorage(STORAGE_KEYS.SCHEDULE, data.schedule);
+    if (data.tasks) saveToStorage(STORAGE_KEYS.TASKS, data.tasks);
+    if (data.taskCompletions) saveToStorage(STORAGE_KEYS.TASK_COMPLETIONS, data.taskCompletions);
 
     return true;
   } catch (error) {
