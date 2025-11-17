@@ -4,9 +4,10 @@ import {
   teacherStorage,
   scheduleStorage,
   substitutionFinder,
+  migrateScheduleEntries,
 } from "@/lib/storage";
 import type { Section, Teacher, AvailableTeacher } from "@/lib/types";
-import { getAllPeriods } from "@/lib/types";
+import { getAllPeriods, getAllDays } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ export function SubstitutionFinder() {
   const [sections, setSections] = useState<Section[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [selectedPeriod, setSelectedPeriod] = useState<number>(0);
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(-1);
   const [assignedTeacher, setAssignedTeacher] = useState<Teacher | null>(
     null
   );
@@ -41,14 +43,17 @@ export function SubstitutionFinder() {
   const [error, setError] = useState<string>("");
 
   const periods = getAllPeriods();
+  const days = getAllDays();
 
   useEffect(() => {
+    // Run migration on first mount
+    migrateScheduleEntries();
     loadData();
   }, []);
 
   useEffect(() => {
     resetSearch();
-  }, [selectedSectionId, selectedPeriod]);
+  }, [selectedSectionId, selectedPeriod, selectedDayOfWeek]);
 
   const loadData = () => {
     setSections(sectionStorage.getAllWithClassInfo());
@@ -60,21 +65,22 @@ export function SubstitutionFinder() {
     setAssignedTeacher(null);
     setError("");
 
-    if (selectedSectionId && selectedPeriod) {
+    if (selectedSectionId && selectedPeriod && selectedDayOfWeek >= 0) {
       loadAssignedTeacher();
     }
   };
 
   const loadAssignedTeacher = () => {
-    if (!selectedSectionId || !selectedPeriod) return;
+    if (!selectedSectionId || !selectedPeriod || selectedDayOfWeek < 0) return;
 
     const scheduleEntry = scheduleStorage.getBySectionAndPeriod(
       selectedSectionId,
-      selectedPeriod
+      selectedPeriod,
+      selectedDayOfWeek
     );
 
     if (!scheduleEntry) {
-      setError("لم يتم تعيين معلم لهذه الحصة");
+      setError("لم يتم تعيين معلم لهذه الحصة في هذا اليوم");
       setAssignedTeacher(null);
       return;
     }
@@ -84,14 +90,15 @@ export function SubstitutionFinder() {
   };
 
   const handleMarkAbsent = () => {
-    if (!selectedPeriod || !assignedTeacher) return;
+    if (!selectedPeriod || selectedDayOfWeek < 0 || !assignedTeacher) return;
 
     setIsTeacherAbsent(true);
     setError("");
 
-    // Find available teachers for this period (excluding the absent teacher)
+    // Find available teachers for this period on this day (excluding the absent teacher)
     const available = substitutionFinder.findAvailableTeachers(
       selectedPeriod,
+      selectedDayOfWeek,
       assignedTeacher.id
     );
     setAvailableTeachers(available);
@@ -100,14 +107,16 @@ export function SubstitutionFinder() {
   const handleReset = () => {
     setSelectedSectionId("");
     setSelectedPeriod(0);
+    setSelectedDayOfWeek(-1);
     resetSearch();
   };
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const selectedPeriodInfo = periods.find((p) => p.number === selectedPeriod);
+  const selectedDayInfo = days.find((d) => d.number === selectedDayOfWeek);
 
   const canSearch =
-    selectedSectionId && selectedPeriod && assignedTeacher && !error;
+    selectedSectionId && selectedPeriod && selectedDayOfWeek >= 0 && assignedTeacher && !error;
 
   return (
     <div className="w-full h-full flex flex-col gap-4 p-4">
@@ -125,7 +134,7 @@ export function SubstitutionFinder() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Selection Form */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             {/* Section Selector */}
             <div className="grid gap-2">
               <Label htmlFor="section">الشعبة</Label>
@@ -156,6 +165,30 @@ export function SubstitutionFinder() {
               </Select>
             </div>
 
+            {/* Day Selector */}
+            <div className="grid gap-2">
+              <Label htmlFor="day">اليوم</Label>
+              <Select
+                value={selectedDayOfWeek >= 0 ? selectedDayOfWeek.toString() : ""}
+                onValueChange={(value) => setSelectedDayOfWeek(parseInt(value))}
+              >
+                <SelectTrigger id="day" className="text-lg">
+                  <SelectValue placeholder="اختر اليوم" />
+                </SelectTrigger>
+                <SelectContent>
+                  {days.map((day) => (
+                    <SelectItem
+                      key={day.number}
+                      value={day.number.toString()}
+                      className="text-lg"
+                    >
+                      {day.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Period Selector */}
             <div className="grid gap-2">
               <Label htmlFor="period">الحصة</Label>
@@ -182,7 +215,7 @@ export function SubstitutionFinder() {
           </div>
 
           {/* Current Selection Display */}
-          {selectedSection && selectedPeriodInfo && (
+          {selectedSection && selectedDayInfo && selectedPeriodInfo && (
             <Card className="bg-muted/50">
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
@@ -191,7 +224,7 @@ export function SubstitutionFinder() {
                       التحديد الحالي
                     </p>
                     <p className="text-lg font-semibold">
-                      {selectedSection.name} - {selectedPeriodInfo.label}
+                      {selectedSection.name} - {selectedDayInfo.label} - {selectedPeriodInfo.label}
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={handleReset}>

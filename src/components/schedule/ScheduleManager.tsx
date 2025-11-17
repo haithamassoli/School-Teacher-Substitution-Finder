@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { sectionStorage, teacherStorage, scheduleStorage } from "@/lib/storage";
+import { sectionStorage, teacherStorage, scheduleStorage, migrateScheduleEntries } from "@/lib/storage";
 import type { SectionWithClass, Teacher, ScheduleEntry } from "@/lib/types";
-import { getAllPeriods } from "@/lib/types";
+import { getAllPeriods, getAllDays } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +33,11 @@ export function ScheduleManager() {
   const [error, setError] = useState<string>("");
 
   const periods = getAllPeriods();
+  const days = getAllDays();
 
   useEffect(() => {
+    // Run migration on first mount
+    migrateScheduleEntries();
     loadData();
   }, []);
 
@@ -54,19 +57,19 @@ export function ScheduleManager() {
     setSchedule(sectionSchedule);
   };
 
-  const getTeacherForPeriod = (period: number): Teacher | null => {
-    const entry = schedule.find((s) => s.period === period);
+  const getTeacherForPeriodAndDay = (period: number, dayOfWeek: number): Teacher | null => {
+    const entry = schedule.find((s) => s.period === period && s.dayOfWeek === dayOfWeek);
     if (!entry) return null;
     return teachers.find((t) => t.id === entry.teacherId) || null;
   };
 
-  const handleAssignTeacher = (period: number, teacherId: string) => {
+  const handleAssignTeacher = (period: number, dayOfWeek: number, teacherId: string) => {
     if (!selectedSectionId) return;
 
     try {
-      scheduleStorage.create(selectedSectionId, period, teacherId);
+      scheduleStorage.create(selectedSectionId, period, dayOfWeek, teacherId);
       loadScheduleForSection(selectedSectionId);
-      setSuccess(`تم تعيين المعلم للحصة ${period}`);
+      setSuccess(`تم تعيين المعلم للحصة ${period} يوم ${days[dayOfWeek].label}`);
       setError("");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -75,17 +78,18 @@ export function ScheduleManager() {
     }
   };
 
-  const handleRemoveTeacher = (period: number) => {
+  const handleRemoveTeacher = (period: number, dayOfWeek: number) => {
     if (!selectedSectionId) return;
 
-    if (window.confirm(`هل تريد إزالة المعلم من الحصة ${period}؟`)) {
+    if (window.confirm(`هل تريد إزالة المعلم من الحصة ${period} يوم ${days[dayOfWeek].label}؟`)) {
       const success = scheduleStorage.deleteBySectionAndPeriod(
         selectedSectionId,
-        period
+        period,
+        dayOfWeek
       );
       if (success) {
         loadScheduleForSection(selectedSectionId);
-        setSuccess(`تم إزالة المعلم من الحصة ${period}`);
+        setSuccess(`تم إزالة المعلم من الحصة ${period} يوم ${days[dayOfWeek].label}`);
         setError("");
         setTimeout(() => setSuccess(""), 3000);
       } else {
@@ -161,7 +165,7 @@ export function ScheduleManager() {
                       {selectedSection.name}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      7 حصص يومياً
+                      7 حصص × 5 أيام أسبوعياً
                     </p>
                   </div>
                   <Badge variant="outline" className="text-base">
@@ -181,84 +185,86 @@ export function ScheduleManager() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right font-bold">
+                          <TableHead className="text-center font-bold border-l">
                             الحصة
                           </TableHead>
-                          <TableHead className="text-right font-bold">
-                            المعلم
-                          </TableHead>
-                          <TableHead className="text-right font-bold">
-                            الإجراءات
-                          </TableHead>
+                          {days.map((day) => (
+                            <TableHead key={day.number} className="text-center font-bold min-w-[200px]">
+                              {day.label}
+                            </TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {periods.map((period) => {
-                          const assignedTeacher = getTeacherForPeriod(
-                            period.number
-                          );
-                          return (
-                            <TableRow key={period.number}>
-                              <TableCell className="font-semibold">
-                                <Badge variant="outline">{period.label}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                {assignedTeacher ? (
-                                  <div className="flex items-center gap-2">
-                                    <UserCheck className="h-4 w-4 text-secondary" />
-                                    <span className="font-medium">
-                                      {assignedTeacher.name}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">
-                                    لم يتم التعيين
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Select
-                                    value={assignedTeacher?.id || ""}
-                                    onValueChange={(teacherId) =>
-                                      handleAssignTeacher(
-                                        period.number,
-                                        teacherId
-                                      )
-                                    }
-                                  >
-                                    <SelectTrigger className="w-[200px]">
-                                      <SelectValue placeholder="اختر معلم" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {teachers.map((teacher) => (
-                                        <SelectItem
-                                          key={teacher.id}
-                                          value={teacher.id}
+                        {periods.map((period) => (
+                          <TableRow key={period.number}>
+                            <TableCell className="font-semibold text-center border-l bg-muted/30">
+                              <Badge variant="outline">{period.label}</Badge>
+                            </TableCell>
+                            {days.map((day) => {
+                              const assignedTeacher = getTeacherForPeriodAndDay(
+                                period.number,
+                                day.number
+                              );
+                              return (
+                                <TableCell key={`${period.number}-${day.number}`} className="p-2">
+                                  <div className="flex flex-col gap-2">
+                                    {assignedTeacher ? (
+                                      <div className="flex items-center gap-1 text-sm">
+                                        <UserCheck className="h-3 w-3 text-secondary flex-shrink-0" />
+                                        <span className="font-medium truncate">
+                                          {assignedTeacher.name}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground text-xs">
+                                        لم يتم التعيين
+                                      </span>
+                                    )}
+                                    <div className="flex gap-1">
+                                      <Select
+                                        value={assignedTeacher?.id || ""}
+                                        onValueChange={(teacherId) =>
+                                          handleAssignTeacher(
+                                            period.number,
+                                            day.number,
+                                            teacherId
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger className="h-8 text-xs">
+                                          <SelectValue placeholder="اختر" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {teachers.map((teacher) => (
+                                            <SelectItem
+                                              key={teacher.id}
+                                              value={teacher.id}
+                                            >
+                                              {teacher.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      {assignedTeacher && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            handleRemoveTeacher(period.number, day.number)
+                                          }
+                                          className="h-8 w-8 p-0"
                                         >
-                                          {teacher.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {assignedTeacher && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleRemoveTeacher(period.number)
-                                      }
-                                      className="gap-1"
-                                    >
-                                      <X className="h-4 w-4" />
-                                      <span>إزالة</span>
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </div>

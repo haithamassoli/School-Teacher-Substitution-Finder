@@ -258,16 +258,35 @@ export const scheduleStorage = {
     return this.getAll().filter((s) => s.sectionId === sectionId);
   },
 
-  getByPeriod(period: number): ScheduleEntry[] {
-    return this.getAll().filter((s) => s.period === period);
+  getByPeriod(period: number, dayOfWeek?: number): ScheduleEntry[] {
+    return this.getAll().filter((s) => {
+      if (dayOfWeek !== undefined) {
+        return s.period === period && s.dayOfWeek === dayOfWeek;
+      }
+      return s.period === period;
+    });
   },
 
   getBySectionAndPeriod(
     sectionId: string,
-    period: number
+    period: number,
+    dayOfWeek?: number
+  ): ScheduleEntry | undefined {
+    return this.getAll().find((s) => {
+      if (dayOfWeek !== undefined) {
+        return s.sectionId === sectionId && s.period === period && s.dayOfWeek === dayOfWeek;
+      }
+      return s.sectionId === sectionId && s.period === period;
+    });
+  },
+
+  getBySectionPeriodAndDay(
+    sectionId: string,
+    period: number,
+    dayOfWeek: number
   ): ScheduleEntry | undefined {
     return this.getAll().find(
-      (s) => s.sectionId === sectionId && s.period === period
+      (s) => s.sectionId === sectionId && s.period === period && s.dayOfWeek === dayOfWeek
     );
   },
 
@@ -292,10 +311,11 @@ export const scheduleStorage = {
   create(
     sectionId: string,
     period: number,
+    dayOfWeek: number,
     teacherId: string
   ): ScheduleEntry | null {
-    // Check if entry already exists
-    const existing = this.getBySectionAndPeriod(sectionId, period);
+    // Check if entry already exists for this section, period, and day
+    const existing = this.getBySectionPeriodAndDay(sectionId, period, dayOfWeek);
     if (existing) {
       return this.update(existing.id, teacherId);
     }
@@ -305,6 +325,7 @@ export const scheduleStorage = {
       id: generateId(),
       sectionId,
       period,
+      dayOfWeek,
       teacherId,
       createdAt: Date.now(),
     };
@@ -347,11 +368,14 @@ export const scheduleStorage = {
     saveToStorage(STORAGE_KEYS.SCHEDULE, filtered);
   },
 
-  deleteBySectionAndPeriod(sectionId: string, period: number): boolean {
+  deleteBySectionAndPeriod(sectionId: string, period: number, dayOfWeek?: number): boolean {
     const schedule = this.getAll();
-    const filtered = schedule.filter(
-      (s) => !(s.sectionId === sectionId && s.period === period)
-    );
+    const filtered = schedule.filter((s) => {
+      if (dayOfWeek !== undefined) {
+        return !(s.sectionId === sectionId && s.period === period && s.dayOfWeek === dayOfWeek);
+      }
+      return !(s.sectionId === sectionId && s.period === period);
+    });
     if (filtered.length === schedule.length) return false;
 
     saveToStorage(STORAGE_KEYS.SCHEDULE, filtered);
@@ -635,19 +659,21 @@ export const taskCompletionStorage = {
 
 export const substitutionFinder = {
   /**
-   * Find all teachers who are available (not assigned) during a specific period
+   * Find all teachers who are available (not assigned) during a specific period on a specific day
    * @param period The period number (1-7)
+   * @param dayOfWeek The day of week (0-4)
    * @param excludeTeacherId Optional teacher ID to exclude (the absent teacher)
    * @returns Array of available teachers
    */
   findAvailableTeachers(
     period: number,
+    dayOfWeek: number,
     excludeTeacherId?: string
   ): AvailableTeacher[] {
     const allTeachers = teacherStorage.getAll();
-    const scheduleForPeriod = scheduleStorage.getByPeriod(period);
+    const scheduleForPeriod = scheduleStorage.getByPeriod(period, dayOfWeek);
 
-    // Get IDs of teachers who are busy during this period
+    // Get IDs of teachers who are busy during this period on this day
     const busyTeacherIds = new Set(
       scheduleForPeriod.map((entry) => entry.teacherId)
     );
@@ -714,5 +740,31 @@ export function importData(jsonString: string): boolean {
   } catch (error) {
     console.error("Error importing data:", error);
     return false;
+  }
+}
+
+/**
+ * Migrate existing schedule entries to include dayOfWeek field
+ * This function assigns all entries without a dayOfWeek to day 0 (Sunday/الأحد)
+ */
+export function migrateScheduleEntries(): void {
+  const schedule = scheduleStorage.getAll();
+  let needsMigration = false;
+
+  const migrated = schedule.map((entry) => {
+    // Check if entry is missing dayOfWeek field
+    if (entry.dayOfWeek === undefined || entry.dayOfWeek === null) {
+      needsMigration = true;
+      return {
+        ...entry,
+        dayOfWeek: 0, // Assign to Sunday (الأحد)
+      };
+    }
+    return entry;
+  });
+
+  if (needsMigration) {
+    saveToStorage(STORAGE_KEYS.SCHEDULE, migrated);
+    console.log("Schedule entries migrated to include dayOfWeek field");
   }
 }

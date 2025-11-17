@@ -30,13 +30,14 @@ export interface Section {
 }
 
 /**
- * Represents a single schedule entry (teacher assignment to a period)
- * Note: We have 7 periods per day for each section
+ * Represents a single schedule entry (teacher assignment to a period on a specific day)
+ * Note: We have 7 periods per day, 5 days per week for each section
  */
 export interface ScheduleEntry {
   id: string;
   sectionId: string;
   period: number; // 1-7
+  dayOfWeek: number; // 0-4 (0=الأحد, 1=الإثنين, 2=الثلاثاء, 3=الأربعاء, 4=الخميس)
   teacherId: string;
   createdAt: number;
 }
@@ -126,9 +127,19 @@ export interface PeriodInfo {
 }
 
 /**
+ * Day information
+ */
+export interface DayInfo {
+  number: number;
+  label: string; // e.g., "الأحد"
+}
+
+/**
  * Constants
  */
 export const PERIODS_PER_DAY = 7;
+export const DAYS_PER_WEEK = 5;
+export const ARABIC_DAY_NAMES = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"] as const;
 export const SECTION_LETTERS = ["أ", "ب", "ج", "د", "هـ", "و", "ز"] as const;
 
 /**
@@ -145,5 +156,22 @@ export const getAllPeriods = (): PeriodInfo[] => {
   return Array.from({ length: PERIODS_PER_DAY }, (_, i) => ({
     number: i + 1,
     label: getPeriodLabel(i + 1),
+  }));
+};
+
+/**
+ * Helper function to get day label in Arabic
+ */
+export const getDayLabel = (dayOfWeek: number): string => {
+  return ARABIC_DAY_NAMES[dayOfWeek] || "";
+};
+
+/**
+ * Helper function to get all days
+ */
+export const getAllDays = (): DayInfo[] => {
+  return Array.from({ length: DAYS_PER_WEEK }, (_, i) => ({
+    number: i,
+    label: getDayLabel(i),
   }));
 };

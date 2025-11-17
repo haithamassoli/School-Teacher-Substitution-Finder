@@ -11,18 +11,18 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { sectionStorage } from "@/lib/storage";
-import { teacherStorage } from "@/lib/storage";
-import { scheduleStorage } from "@/lib/storage";
+import { sectionStorage, teacherStorage, scheduleStorage, migrateScheduleEntries } from "@/lib/storage";
 import type { SectionWithClass, Teacher, ScheduleEntry } from "@/lib/types";
-import { PERIODS_PER_DAY } from "@/lib/types";
+import { PERIODS_PER_DAY, getAllDays } from "@/lib/types";
 
 interface SelectedEntry {
   sectionId: string;
   period: number;
+  dayOfWeek: number;
   scheduleEntry: ScheduleEntry | null;
   teacher: Teacher | null;
   sectionName: string;
+  dayName: string;
 }
 
 export function ScheduleSwap() {
@@ -33,15 +33,21 @@ export function ScheduleSwap() {
 
   // First entry selection
   const [firstSectionId, setFirstSectionId] = useState<string>("");
+  const [firstDayOfWeek, setFirstDayOfWeek] = useState<string>("");
   const [firstPeriod, setFirstPeriod] = useState<string>("");
   const [firstEntry, setFirstEntry] = useState<SelectedEntry | null>(null);
 
   // Second entry selection
   const [secondSectionId, setSecondSectionId] = useState<string>("");
+  const [secondDayOfWeek, setSecondDayOfWeek] = useState<string>("");
   const [secondPeriod, setSecondPeriod] = useState<string>("");
   const [secondEntry, setSecondEntry] = useState<SelectedEntry | null>(null);
 
+  const days = getAllDays();
+
   useEffect(() => {
+    // Run migration on first mount
+    migrateScheduleEntries();
     loadData();
   }, []);
 
@@ -50,36 +56,39 @@ export function ScheduleSwap() {
     setTeachers(teacherStorage.getAll());
   };
 
-  // Update first entry when section or period changes
+  // Update first entry when section, day, or period changes
   useEffect(() => {
-    if (firstSectionId && firstPeriod) {
-      loadEntry(firstSectionId, parseInt(firstPeriod), setFirstEntry);
+    if (firstSectionId && firstDayOfWeek && firstPeriod) {
+      loadEntry(firstSectionId, parseInt(firstDayOfWeek), parseInt(firstPeriod), setFirstEntry);
     } else {
       setFirstEntry(null);
     }
-  }, [firstSectionId, firstPeriod]);
+  }, [firstSectionId, firstDayOfWeek, firstPeriod]);
 
-  // Update second entry when section or period changes
+  // Update second entry when section, day, or period changes
   useEffect(() => {
-    if (secondSectionId && secondPeriod) {
-      loadEntry(secondSectionId, parseInt(secondPeriod), setSecondEntry);
+    if (secondSectionId && secondDayOfWeek && secondPeriod) {
+      loadEntry(secondSectionId, parseInt(secondDayOfWeek), parseInt(secondPeriod), setSecondEntry);
     } else {
       setSecondEntry(null);
     }
-  }, [secondSectionId, secondPeriod]);
+  }, [secondSectionId, secondDayOfWeek, secondPeriod]);
 
   const loadEntry = (
     sectionId: string,
+    dayOfWeek: number,
     period: number,
     setEntry: (entry: SelectedEntry | null) => void
   ) => {
     const section = sections.find((s) => s.id === sectionId);
-    if (!section) {
+    const day = days.find((d) => d.number === dayOfWeek);
+
+    if (!section || !day) {
       setEntry(null);
       return;
     }
 
-    const scheduleEntry = scheduleStorage.getBySectionAndPeriod(sectionId, period) || null;
+    const scheduleEntry = scheduleStorage.getBySectionAndPeriod(sectionId, period, dayOfWeek) || null;
     const teacher = scheduleEntry
       ? teachers.find((t) => t.id === scheduleEntry.teacherId) || null
       : null;
@@ -87,9 +96,11 @@ export function ScheduleSwap() {
     setEntry({
       sectionId,
       period,
+      dayOfWeek,
       scheduleEntry,
       teacher,
       sectionName: section.name,
+      dayName: day.label,
     });
   };
 
@@ -107,24 +118,30 @@ export function ScheduleSwap() {
       return "الحصة الثانية ليس لها معلم مُعيّن";
     }
 
+    // Check that both entries are on the same day (required per user preference)
+    if (firstEntry.dayOfWeek !== secondEntry.dayOfWeek) {
+      return "يجب أن يكون التبديل في نفس اليوم";
+    }
+
     // Check for same selection
     if (
       firstEntry.sectionId === secondEntry.sectionId &&
-      firstEntry.period === secondEntry.period
+      firstEntry.period === secondEntry.period &&
+      firstEntry.dayOfWeek === secondEntry.dayOfWeek
     ) {
       return "لا يمكن تبديل الحصة مع نفسها";
     }
 
     // Validate no conflicts after swap
-    // After swap: Teacher A will teach at Section B/Period B, Teacher B will teach at Section A/Period A
+    // After swap: Teacher A will teach at Section B/Period B on the same day, Teacher B will teach at Section A/Period A on the same day
 
     const teacherA = firstEntry.teacher;
     const teacherB = secondEntry.teacher;
 
-    // Check if Teacher A would have a conflict at secondEntry's period
+    // Check if Teacher A would have a conflict at secondEntry's period on the same day
     // (excluding the secondEntry itself which will be replaced)
     const teacherASchedule = scheduleStorage
-      .getByPeriod(secondEntry.period)
+      .getByPeriod(secondEntry.period, secondEntry.dayOfWeek)
       .filter(
         (entry) =>
           entry.teacherId === teacherA.id &&
@@ -132,13 +149,13 @@ export function ScheduleSwap() {
       );
 
     if (teacherASchedule.length > 0) {
-      return `لا يمكن التبديل: المعلم ${teacherA.name} لديه حصة أخرى في الحصة ${secondEntry.period}`;
+      return `لا يمكن التبديل: المعلم ${teacherA.name} لديه حصة أخرى في الحصة ${secondEntry.period} يوم ${secondEntry.dayName}`;
     }
 
-    // Check if Teacher B would have a conflict at firstEntry's period
+    // Check if Teacher B would have a conflict at firstEntry's period on the same day
     // (excluding the firstEntry itself which will be replaced)
     const teacherBSchedule = scheduleStorage
-      .getByPeriod(firstEntry.period)
+      .getByPeriod(firstEntry.period, firstEntry.dayOfWeek)
       .filter(
         (entry) =>
           entry.teacherId === teacherB.id &&
@@ -146,7 +163,7 @@ export function ScheduleSwap() {
       );
 
     if (teacherBSchedule.length > 0) {
-      return `لا يمكن التبديل: المعلم ${teacherB.name} لديه حصة أخرى في الحصة ${firstEntry.period}`;
+      return `لا يمكن التبديل: المعلم ${teacherB.name} لديه حصة أخرى في الحصة ${firstEntry.period} يوم ${firstEntry.dayName}`;
     }
 
     return null; // Valid swap
@@ -185,8 +202,10 @@ export function ScheduleSwap() {
 
       // Clear selections
       setFirstSectionId("");
+      setFirstDayOfWeek("");
       setFirstPeriod("");
       setSecondSectionId("");
+      setSecondDayOfWeek("");
       setSecondPeriod("");
       setFirstEntry(null);
       setSecondEntry(null);
@@ -252,13 +271,34 @@ export function ScheduleSwap() {
                   </Select>
                 </div>
 
+                {/* Day Select */}
+                <div className="grid gap-2">
+                  <Label htmlFor="first-day">اختر اليوم</Label>
+                  <Select
+                    value={firstDayOfWeek}
+                    onValueChange={setFirstDayOfWeek}
+                    disabled={!firstSectionId}
+                  >
+                    <SelectTrigger id="first-day" className="text-lg">
+                      <SelectValue placeholder="اختر اليوم" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {days.map((day) => (
+                        <SelectItem key={day.number} value={day.number.toString()} className="text-lg">
+                          {day.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Period Select */}
                 <div className="grid gap-2">
                   <Label htmlFor="first-period">اختر رقم الحصة</Label>
                   <Select
                     value={firstPeriod}
                     onValueChange={setFirstPeriod}
-                    disabled={!firstSectionId}
+                    disabled={!firstSectionId || !firstDayOfWeek}
                   >
                     <SelectTrigger id="first-period" className="text-lg">
                       <SelectValue placeholder="اختر رقم الحصة" />
@@ -312,13 +352,34 @@ export function ScheduleSwap() {
                   </Select>
                 </div>
 
+                {/* Day Select */}
+                <div className="grid gap-2">
+                  <Label htmlFor="second-day">اختر اليوم</Label>
+                  <Select
+                    value={secondDayOfWeek}
+                    onValueChange={setSecondDayOfWeek}
+                    disabled={!secondSectionId}
+                  >
+                    <SelectTrigger id="second-day" className="text-lg">
+                      <SelectValue placeholder="اختر اليوم" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {days.map((day) => (
+                        <SelectItem key={day.number} value={day.number.toString()} className="text-lg">
+                          {day.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Period Select */}
                 <div className="grid gap-2">
                   <Label htmlFor="second-period">اختر رقم الحصة</Label>
                   <Select
                     value={secondPeriod}
                     onValueChange={setSecondPeriod}
-                    disabled={!secondSectionId}
+                    disabled={!secondSectionId || !secondDayOfWeek}
                   >
                     <SelectTrigger id="second-period" className="text-lg">
                       <SelectValue placeholder="اختر رقم الحصة" />
@@ -360,13 +421,13 @@ export function ScheduleSwap() {
                     <div className="text-sm">
                       <span className="font-semibold">{firstEntry!.teacher!.name}</span>
                       <span className="mx-2">←</span>
-                      <span>{secondEntry!.sectionName} (الحصة {secondEntry!.period})</span>
+                      <span>{secondEntry!.sectionName} ({secondEntry!.dayName} - الحصة {secondEntry!.period})</span>
                     </div>
                     <ArrowLeftRight className="h-4 w-4 text-primary" />
                     <div className="text-sm">
                       <span className="font-semibold">{secondEntry!.teacher!.name}</span>
                       <span className="mx-2">←</span>
-                      <span>{firstEntry!.sectionName} (الحصة {firstEntry!.period})</span>
+                      <span>{firstEntry!.sectionName} ({firstEntry!.dayName} - الحصة {firstEntry!.period})</span>
                     </div>
                   </div>
                 </div>
