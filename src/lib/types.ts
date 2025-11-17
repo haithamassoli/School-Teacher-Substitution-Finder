@@ -31,12 +31,12 @@ export interface Section {
 
 /**
  * Represents a single schedule entry (teacher assignment to a period on a specific day)
- * Note: We have 7 periods per day, 5 days per week for each section
+ * Note: We have 8 periods per day, 5 days per week for each section
  */
 export interface ScheduleEntry {
   id: string;
   sectionId: string;
-  period: number; // 1-7
+  period: number; // 1-8
   dayOfWeek: number; // 0-4 (0=الأحد, 1=الإثنين, 2=الثلاثاء, 3=الأربعاء, 4=الخميس)
   teacherId: string;
   createdAt: number;
@@ -137,7 +137,7 @@ export interface DayInfo {
 /**
  * Constants
  */
-export const PERIODS_PER_DAY = 7;
+export const PERIODS_PER_DAY = 8;
 export const DAYS_PER_WEEK = 5;
 export const ARABIC_DAY_NAMES = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"] as const;
 export const SECTION_LETTERS = ["أ", "ب", "ج", "د", "هـ", "و", "ز"] as const;

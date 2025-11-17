@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { sectionStorage, teacherStorage, scheduleStorage, migrateScheduleEntries } from "@/lib/storage";
+import {
+  sectionStorage,
+  teacherStorage,
+  scheduleStorage,
+  migrateScheduleEntries,
+} from "@/lib/storage";
 import type { SectionWithClass, Teacher, ScheduleEntry } from "@/lib/types";
 import { getAllPeriods, getAllDays } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -57,19 +62,30 @@ export function ScheduleManager() {
     setSchedule(sectionSchedule);
   };
 
-  const getTeacherForPeriodAndDay = (period: number, dayOfWeek: number): Teacher | null => {
-    const entry = schedule.find((s) => s.period === period && s.dayOfWeek === dayOfWeek);
+  const getTeacherForPeriodAndDay = (
+    period: number,
+    dayOfWeek: number
+  ): Teacher | null => {
+    const entry = schedule.find(
+      (s) => s.period === period && s.dayOfWeek === dayOfWeek
+    );
     if (!entry) return null;
     return teachers.find((t) => t.id === entry.teacherId) || null;
   };
 
-  const handleAssignTeacher = (period: number, dayOfWeek: number, teacherId: string) => {
+  const handleAssignTeacher = (
+    period: number,
+    dayOfWeek: number,
+    teacherId: string
+  ) => {
     if (!selectedSectionId) return;
 
     try {
       scheduleStorage.create(selectedSectionId, period, dayOfWeek, teacherId);
       loadScheduleForSection(selectedSectionId);
-      setSuccess(`تم تعيين المعلم للحصة ${period} يوم ${days[dayOfWeek].label}`);
+      setSuccess(
+        `تم تعيين المعلم للحصة ${period} يوم ${days[dayOfWeek].label}`
+      );
       setError("");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -81,7 +97,11 @@ export function ScheduleManager() {
   const handleRemoveTeacher = (period: number, dayOfWeek: number) => {
     if (!selectedSectionId) return;
 
-    if (window.confirm(`هل تريد إزالة المعلم من الحصة ${period} يوم ${days[dayOfWeek].label}؟`)) {
+    if (
+      window.confirm(
+        `هل تريد إزالة المعلم من الحصة ${period} يوم ${days[dayOfWeek].label}؟`
+      )
+    ) {
       const success = scheduleStorage.deleteBySectionAndPeriod(
         selectedSectionId,
         period,
@@ -89,7 +109,9 @@ export function ScheduleManager() {
       );
       if (success) {
         loadScheduleForSection(selectedSectionId);
-        setSuccess(`تم إزالة المعلم من الحصة ${period} يوم ${days[dayOfWeek].label}`);
+        setSuccess(
+          `تم إزالة المعلم من الحصة ${period} يوم ${days[dayOfWeek].label}`
+        );
         setError("");
         setTimeout(() => setSuccess(""), 3000);
       } else {
@@ -165,7 +187,7 @@ export function ScheduleManager() {
                       {selectedSection.name}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      7 حصص × 5 أيام أسبوعياً
+                      8 حصص × 5 أيام أسبوعياً
                     </p>
                   </div>
                   <Badge variant="outline" className="text-base">
@@ -189,7 +211,10 @@ export function ScheduleManager() {
                             الحصة
                           </TableHead>
                           {days.map((day) => (
-                            <TableHead key={day.number} className="text-center font-bold min-w-[200px]">
+                            <TableHead
+                              key={day.number}
+                              className="text-center font-bold min-w-[200px]"
+                            >
                               {day.label}
                             </TableHead>
                           ))}
@@ -199,7 +224,7 @@ export function ScheduleManager() {
                         {periods.map((period) => (
                           <TableRow key={period.number}>
                             <TableCell className="font-semibold text-center border-l bg-muted/30">
-                              <Badge variant="outline">{period.label}</Badge>
+                              {/* <Badge variant="outline">{period.label}</Badge> */}
                             </TableCell>
                             {days.map((day) => {
                               const assignedTeacher = getTeacherForPeriodAndDay(
@@ -207,7 +232,10 @@ export function ScheduleManager() {
                                 day.number
                               );
                               return (
-                                <TableCell key={`${period.number}-${day.number}`} className="p-2">
+                                <TableCell
+                                  key={`${period.number}-${day.number}`}
+                                  className="p-2"
+                                >
                                   <div className="flex flex-col gap-2">
                                     {assignedTeacher ? (
                                       <div className="flex items-center gap-1 text-sm">
@@ -251,7 +279,10 @@ export function ScheduleManager() {
                                           variant="outline"
                                           size="sm"
                                           onClick={() =>
-                                            handleRemoveTeacher(period.number, day.number)
+                                            handleRemoveTeacher(
+                                              period.number,
+                                              day.number
+                                            )
                                           }
                                           className="h-8 w-8 p-0"
                                         >
