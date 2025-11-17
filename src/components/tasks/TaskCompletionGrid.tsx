@@ -61,6 +61,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
   // Task filtering state
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [taskCompletionFilter, setTaskCompletionFilter] = useState<TaskCompletionFilter>("all");
+  const [selectedTaskForTeacherFilter, setSelectedTaskForTeacherFilter] = useState<string>("");
 
   // Notes dialog state
   const [notesDialog, setNotesDialog] = useState<{
@@ -215,6 +216,14 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
       filtered = filtered.filter((t) => t.completedCount < t.totalTasks);
     }
 
+    // Apply task-based teacher filter (show only teachers who completed a specific task)
+    if (selectedTaskForTeacherFilter) {
+      filtered = filtered.filter((t) => {
+        const completion = t.completions.get(selectedTaskForTeacherFilter);
+        return completion?.completed === true;
+      });
+    }
+
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -230,7 +239,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
     });
 
     return filtered;
-  }, [teachersWithCompletions, searchQuery, filterStatus, sortBy]);
+  }, [teachersWithCompletions, searchQuery, filterStatus, sortBy, selectedTaskForTeacherFilter]);
 
   if (tasks.length === 0) {
     return (
@@ -411,6 +420,27 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                     <SelectItem value="completed">مكتمل بالكامل</SelectItem>
                     <SelectItem value="in-progress">قيد الإنجاز</SelectItem>
                     <SelectItem value="not-started">لم يبدأ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Task-Based Teacher Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="teacherByTask">عرض المعلمين حسب المهمة</Label>
+                <Select
+                  value={selectedTaskForTeacherFilter}
+                  onValueChange={(value) => setSelectedTaskForTeacherFilter(value)}
+                >
+                  <SelectTrigger id="teacherByTask">
+                    <SelectValue placeholder="جميع المعلمين" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">جميع المعلمين</SelectItem>
+                    {tasks.map((task) => (
+                      <SelectItem key={task.id} value={task.id}>
+                        {task.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
