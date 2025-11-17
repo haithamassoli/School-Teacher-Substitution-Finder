@@ -37,7 +37,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X, Search, CheckCheck, RotateCcw, ListFilter } from "lucide-react";
+import {
+  Check,
+  X,
+  Search,
+  CheckCheck,
+  RotateCcw,
+  ListFilter,
+} from "lucide-react";
 
 type FilterStatus = "all" | "completed" | "incomplete";
 type SortBy = "name" | "completion" | "taskCount";
@@ -60,8 +67,10 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
 
   // Task filtering state
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-  const [taskCompletionFilter, setTaskCompletionFilter] = useState<TaskCompletionFilter>("all");
-  const [selectedTaskForTeacherFilter, setSelectedTaskForTeacherFilter] = useState<string>("all");
+  const [taskCompletionFilter, setTaskCompletionFilter] =
+    useState<TaskCompletionFilter>("all");
+  const [selectedTaskForTeacherFilter, setSelectedTaskForTeacherFilter] =
+    useState<string>("all");
 
   // Notes dialog state
   const [notesDialog, setNotesDialog] = useState<{
@@ -134,9 +143,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
 
   const handleBulkMarkComplete = (taskId: string) => {
     if (
-      window.confirm(
-        "هل أنت متأكد من تعيين هذه المهمة كمكتملة لجميع المعلمين؟"
-      )
+      window.confirm("هل أنت متأكد من تعيين هذه المهمة كمكتملة لجميع المعلمين؟")
     ) {
       taskCompletionStorage.markAllCompleteForTask(taskId);
       refreshData();
@@ -165,7 +172,8 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
       });
       const completedCount = completions.length;
       const totalTeachers = teachersWithCompletions.length;
-      const completionRate = totalTeachers > 0 ? (completedCount / totalTeachers) * 100 : 0;
+      const completionRate =
+        totalTeachers > 0 ? (completedCount / totalTeachers) * 100 : 0;
 
       return {
         task,
@@ -189,7 +197,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
     if (taskCompletionFilter === "completed") {
       filtered = filtered.filter((t) => t.completionRate === 100);
     } else if (taskCompletionFilter === "in-progress") {
-      filtered = filtered.filter((t) => t.completionRate > 0 && t.completionRate < 100);
+      filtered = filtered.filter(
+        (t) => t.completionRate > 0 && t.completionRate < 100
+      );
     } else if (taskCompletionFilter === "not-started") {
       filtered = filtered.filter((t) => t.completionRate === 0);
     }
@@ -217,7 +227,10 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
     }
 
     // Apply task-based teacher filter (show only teachers who completed a specific task)
-    if (selectedTaskForTeacherFilter && selectedTaskForTeacherFilter !== "all") {
+    if (
+      selectedTaskForTeacherFilter &&
+      selectedTaskForTeacherFilter !== "all"
+    ) {
       filtered = filtered.filter((t) => {
         const completion = t.completions.get(selectedTaskForTeacherFilter);
         return completion?.completed === true;
@@ -239,7 +252,13 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
     });
 
     return filtered;
-  }, [teachersWithCompletions, searchQuery, filterStatus, sortBy, selectedTaskForTeacherFilter]);
+  }, [
+    teachersWithCompletions,
+    searchQuery,
+    filterStatus,
+    sortBy,
+    selectedTaskForTeacherFilter,
+  ]);
 
   if (tasks.length === 0) {
     return (
@@ -247,7 +266,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
         <CardContent className="py-8">
           <div className="text-center text-muted-foreground">
             <p>لا توجد مهام بعد</p>
-            <p className="text-sm mt-2">قم بإضافة مهام جديدة للبدء في المتابعة</p>
+            <p className="text-sm mt-2">
+              قم بإضافة مهام جديدة للبدء في المتابعة
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -327,7 +348,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                   <SelectContent>
                     <SelectItem value="name">الاسم (أ-ي)</SelectItem>
                     <SelectItem value="completion">نسبة الإنجاز</SelectItem>
-                    <SelectItem value="taskCount">عدد المهام المكتملة</SelectItem>
+                    <SelectItem value="taskCount">
+                      عدد المهام المكتملة
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -337,7 +360,10 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                 <Label>اختيار المهام</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                    >
                       <span>
                         {selectedTaskIds.length === 0
                           ? "جميع المهام"
@@ -349,7 +375,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                   <PopoverContent className="w-[300px] p-4" align="start">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm font-semibold">اختر المهام</Label>
+                        <Label className="text-sm font-semibold">
+                          اختر المهام
+                        </Label>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -381,10 +409,15 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                               }
                               onCheckedChange={(checked) => {
                                 if (checked) {
-                                  setSelectedTaskIds([...selectedTaskIds, task.id]);
+                                  setSelectedTaskIds([
+                                    ...selectedTaskIds,
+                                    task.id,
+                                  ]);
                                 } else {
                                   setSelectedTaskIds(
-                                    selectedTaskIds.filter((id) => id !== task.id)
+                                    selectedTaskIds.filter(
+                                      (id) => id !== task.id
+                                    )
                                   );
                                 }
                               }}
@@ -429,7 +462,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                 <Label htmlFor="teacherByTask">عرض المعلمين حسب المهمة</Label>
                 <Select
                   value={selectedTaskForTeacherFilter}
-                  onValueChange={(value) => setSelectedTaskForTeacherFilter(value)}
+                  onValueChange={(value) =>
+                    setSelectedTaskForTeacherFilter(value)
+                  }
                 >
                   <SelectTrigger id="teacherByTask">
                     <SelectValue placeholder="جميع المعلمين" />
@@ -465,7 +500,10 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                       المعلم
                     </TableHead>
                     {filteredTasks.map((task) => (
-                      <TableHead key={task.id} className="text-center min-w-[140px]">
+                      <TableHead
+                        key={task.id}
+                        className="text-center min-w-[140px]"
+                      >
                         <div className="space-y-2">
                           <div className="font-semibold">{task.name}</div>
                           {task.description && (
@@ -562,7 +600,8 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                             {teacherData.completionPercentage}%
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            {teacherData.completedCount}/{teacherData.totalTasks}
+                            {teacherData.completedCount}/
+                            {teacherData.totalTasks}
                           </span>
                         </div>
                       </TableCell>
@@ -579,7 +618,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
             <CardContent className="py-8">
               <div className="text-center text-muted-foreground">
                 <p>لا توجد نتائج</p>
-                <p className="text-sm mt-2">جرب تغيير معايير البحث أو الفلترة</p>
+                <p className="text-sm mt-2">
+                  جرب تغيير معايير البحث أو الفلترة
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -596,7 +637,8 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
             <DialogHeader>
               <DialogTitle>إضافة ملاحظات</DialogTitle>
               <DialogDescription>
-                المهمة: {notesDialog.taskName} - المعلم: {notesDialog.teacherName}
+                المهمة: {notesDialog.taskName} - المعلم:{" "}
+                {notesDialog.teacherName}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -618,6 +660,23 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                 onClick={() => setNotesDialog(null)}
               >
                 إلغاء
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (notesDialog) {
+                    handleToggleCompletion(
+                      notesDialog.taskId,
+                      notesDialog.teacherId
+                    );
+                    setNotesDialog(null);
+                    setNotes("");
+                  }
+                }}
+              >
+                <X className="h-4 w-4 ml-1" />
+                إلغاء الإنجاز
               </Button>
               <Button type="button" onClick={handleSaveNotes}>
                 حفظ
