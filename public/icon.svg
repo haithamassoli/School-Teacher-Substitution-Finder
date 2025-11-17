@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#3b82f6"/>
+  <g fill="white">
+    <!-- Arabic Letter "م" (Meem) for "منال" (Manal) -->
+    <path d="M 140 180 Q 140 160 160 160 L 240 160 Q 260 160 260 180 L 260 280 Q 260 300 280 300 Q 300 300 300 280 L 300 180 Q 300 160 320 160 L 352 160 Q 372 160 372 180 L 372 320 Q 372 360 340 360 L 172 360 Q 140 360 140 320 Z" />
+
+    <!-- Simplified teacher/person icon -->
+    <circle cx="256" cy="240" r="35" opacity="0.3"/>
+    <path d="M 220 290 Q 220 275 235 275 L 277 275 Q 292 275 292 290 L 292 320 L 220 320 Z" opacity="0.3"/>
+  </g>
+</svg>
