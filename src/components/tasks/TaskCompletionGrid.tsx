@@ -14,6 +14,12 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -31,10 +37,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X, Search, CheckCheck, RotateCcw } from "lucide-react";
+import { Check, X, Search, CheckCheck, RotateCcw, ListFilter } from "lucide-react";
 
 type FilterStatus = "all" | "completed" | "incomplete";
 type SortBy = "name" | "completion" | "taskCount";
+type TaskCompletionFilter = "all" | "completed" | "in-progress" | "not-started";
 
 interface TaskCompletionGridProps {
   onRefresh: () => void;
@@ -50,6 +57,10 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Task filtering state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [taskCompletionFilter, setTaskCompletionFilter] = useState<TaskCompletionFilter>("all");
 
   // Notes dialog state
   const [notesDialog, setNotesDialog] = useState<{
@@ -144,6 +155,47 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
     }
   };
 
+  // Calculate task completion rates
+  const tasksWithCompletionRates = useMemo(() => {
+    return tasks.map((task) => {
+      const completions = teachersWithCompletions.filter((t) => {
+        const completion = t.completions.get(task.id);
+        return completion?.completed || false;
+      });
+      const completedCount = completions.length;
+      const totalTeachers = teachersWithCompletions.length;
+      const completionRate = totalTeachers > 0 ? (completedCount / totalTeachers) * 100 : 0;
+
+      return {
+        task,
+        completedCount,
+        totalTeachers,
+        completionRate,
+      };
+    });
+  }, [tasks, teachersWithCompletions]);
+
+  // Filter tasks based on selection and completion rate
+  const filteredTasks = useMemo(() => {
+    let filtered = tasksWithCompletionRates;
+
+    // Apply task selection filter
+    if (selectedTaskIds.length > 0) {
+      filtered = filtered.filter((t) => selectedTaskIds.includes(t.task.id));
+    }
+
+    // Apply task completion filter
+    if (taskCompletionFilter === "completed") {
+      filtered = filtered.filter((t) => t.completionRate === 100);
+    } else if (taskCompletionFilter === "in-progress") {
+      filtered = filtered.filter((t) => t.completionRate > 0 && t.completionRate < 100);
+    } else if (taskCompletionFilter === "not-started") {
+      filtered = filtered.filter((t) => t.completionRate === 0);
+    }
+
+    return filtered.map((t) => t.task);
+  }, [tasksWithCompletionRates, selectedTaskIds, taskCompletionFilter]);
+
   // Filtering and sorting
   const filteredAndSortedTeachers = useMemo(() => {
     let filtered = [...teachersWithCompletions];
@@ -218,6 +270,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Teacher Search */}
               <div className="space-y-2">
                 <Label htmlFor="search">بحث عن معلم</Label>
                 <div className="relative">
@@ -232,8 +285,9 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                 </div>
               </div>
 
+              {/* Teacher Completion Status */}
               <div className="space-y-2">
-                <Label htmlFor="filter">حالة الإنجاز</Label>
+                <Label htmlFor="filter">حالة إنجاز المعلمين</Label>
                 <Select
                   value={filterStatus}
                   onValueChange={(value) =>
@@ -251,6 +305,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                 </Select>
               </div>
 
+              {/* Teacher Sort */}
               <div className="space-y-2">
                 <Label htmlFor="sort">الترتيب حسب</Label>
                 <Select
@@ -264,6 +319,98 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                     <SelectItem value="name">الاسم (أ-ي)</SelectItem>
                     <SelectItem value="completion">نسبة الإنجاز</SelectItem>
                     <SelectItem value="taskCount">عدد المهام المكتملة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Task Selection */}
+              <div className="space-y-2">
+                <Label>اختيار المهام</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span>
+                        {selectedTaskIds.length === 0
+                          ? "جميع المهام"
+                          : `${selectedTaskIds.length} مهمة محددة`}
+                      </span>
+                      <ListFilter className="h-4 w-4 mr-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-4" align="start">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">اختر المهام</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (selectedTaskIds.length === tasks.length) {
+                              setSelectedTaskIds([]);
+                            } else {
+                              setSelectedTaskIds(tasks.map((t) => t.id));
+                            }
+                          }}
+                          className="h-7 text-xs"
+                        >
+                          {selectedTaskIds.length === tasks.length
+                            ? "إلغاء الكل"
+                            : "تحديد الكل"}
+                        </Button>
+                      </div>
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                        {tasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="flex items-center space-x-2 space-x-reverse"
+                          >
+                            <Checkbox
+                              id={`task-${task.id}`}
+                              checked={
+                                selectedTaskIds.length === 0 ||
+                                selectedTaskIds.includes(task.id)
+                              }
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedTaskIds([...selectedTaskIds, task.id]);
+                                } else {
+                                  setSelectedTaskIds(
+                                    selectedTaskIds.filter((id) => id !== task.id)
+                                  );
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`task-${task.id}`}
+                              className="text-sm cursor-pointer flex-1"
+                            >
+                              {task.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Task Completion Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="taskFilter">حالة إنجاز المهام</Label>
+                <Select
+                  value={taskCompletionFilter}
+                  onValueChange={(value) =>
+                    setTaskCompletionFilter(value as TaskCompletionFilter)
+                  }
+                >
+                  <SelectTrigger id="taskFilter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع المهام</SelectItem>
+                    <SelectItem value="completed">مكتمل بالكامل</SelectItem>
+                    <SelectItem value="in-progress">قيد الإنجاز</SelectItem>
+                    <SelectItem value="not-started">لم يبدأ</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -287,7 +434,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                     <TableHead className="sticky right-0 bg-background min-w-[200px] font-bold">
                       المعلم
                     </TableHead>
-                    {tasks.map((task) => (
+                    {filteredTasks.map((task) => (
                       <TableHead key={task.id} className="text-center min-w-[140px]">
                         <div className="space-y-2">
                           <div className="font-semibold">{task.name}</div>
@@ -332,7 +479,7 @@ export function TaskCompletionGrid({ onRefresh }: TaskCompletionGridProps) {
                       <TableCell className="sticky right-0 bg-background font-medium">
                         {teacherData.teacher.name}
                       </TableCell>
-                      {tasks.map((task) => {
+                      {filteredTasks.map((task) => {
                         const completion = teacherData.completions.get(task.id);
                         const isCompleted = completion?.completed || false;
 
