@@ -1,16 +1,19 @@
-# Manal - نظام إدارة البدائل المدرسية
+# Manal - نظام إدارة المدرسة الذكي
 
-**Manal** is a school teacher substitution management system designed for Arabic-speaking educational institutions. The application helps administrators manage teachers, class schedules, and quickly find available substitute teachers when someone is absent.
+**Manal** is a comprehensive school management system designed for Arabic-speaking educational institutions. The application helps administrators manage teachers, class schedules, find available substitute teachers, adjust timetables, and track teacher task completion.
 
 ## Features
 
 - **Substitution Finder**: Quickly identify available teachers for any period when a teacher is absent
+- **Schedule Swap (Timetable Adjustment)**: Swap teacher assignments between different sections and periods with automatic conflict validation
+- **Teacher Task Tracker**: Create, assign, and monitor task completion across all teachers with visual progress tracking
 - **Teacher Management**: Add, edit, and remove teachers from the system
 - **Class & Section Management**: Organize school structure with classes and sections
 - **Schedule Management**: Assign teachers to specific sections and periods
 - **Data Export/Import**: Backup and restore all data for safety
 - **RTL Interface**: Full Arabic language support with right-to-left layout
 - **Offline-First**: All data stored locally in browser (no backend required)
+- **PWA Support**: Progressive Web App capabilities for mobile installation
 
 ## Tech Stack
 
@@ -68,8 +71,9 @@ pnpm lint
 src/
 ├── components/
 │   ├── classes/         # Class and section management components
-│   ├── schedule/        # Schedule management components
+│   ├── schedule/        # Schedule management and swap components
 │   ├── substitution/    # Substitution finder component
+│   ├── tasks/           # Teacher task tracker components
 │   ├── teachers/        # Teacher management components
 │   └── ui/              # Reusable UI components (shadcn/ui)
 ├── lib/
@@ -81,26 +85,31 @@ src/
 
 ## Data Model
 
-The application manages four core entities:
+The application manages six core entities:
 
 - **Teachers**: Individual instructors in the system
 - **Classes**: Grade levels (e.g., "الصف السادس")
 - **Sections**: Specific class sections (e.g., "الصف السادس أ", "الصف السادس ب")
 - **Schedule Entries**: Assignments of teachers to specific sections and periods (7 periods per day)
+- **Tasks**: Trackable assignments or duties for teachers to complete
+- **Task Completions**: Records tracking which teachers have completed which tasks
 
 ### Key Relationships
 
 - Each Section belongs to one Class
 - The schedule assigns one Teacher to one Section for one Period
-- Deleting a Teacher cascades to remove their schedule entries
+- Each Task can have multiple Task Completions (one per teacher)
+- Each Task Completion links one Teacher to one Task
+- Deleting a Teacher cascades to remove their schedule entries and task completions
 - Deleting a Class cascades to remove all its Sections and their schedule entries
 - Deleting a Section cascades to remove all its schedule entries
+- Deleting a Task cascades to remove all its task completions
 
 ## How It Works
 
 ### Substitution Finding Algorithm
 
-The core functionality finds available substitute teachers:
+Finds available substitute teachers when someone is absent:
 
 1. User selects a section and period
 2. System shows the assigned teacher for that slot
@@ -110,7 +119,33 @@ The core functionality finds available substitute teachers:
    - Identifies busy teachers (those with assignments in that period)
    - Returns available teachers who can substitute
 
-This real-time availability check is the primary value proposition of the application.
+### Schedule Swap Algorithm
+
+Allows swapping teacher assignments between two different periods:
+
+1. User selects two schedule entries (section + period for each)
+2. System displays the assigned teachers for both slots
+3. When initiating a swap, the system validates:
+   - Both entries have assigned teachers
+   - The entries are not identical
+   - Neither teacher has conflicting assignments at the target period
+4. If validation passes, teachers are swapped between the two slots
+5. Schedule is updated and changes persist to localStorage
+
+### Teacher Task Tracker
+
+Manages task assignments and monitors completion across all teachers:
+
+1. Administrator creates tasks with name and description
+2. System displays task completion grid showing:
+   - All tasks in rows
+   - All teachers in columns
+   - Completion status for each teacher-task combination
+3. Administrators can toggle completion status for any teacher
+4. System calculates and displays real-time completion statistics:
+   - Percentage of teachers who completed each task
+   - Number of completed vs total teachers per task
+5. Tasks can be edited or deleted (with cascading deletion of completions)
 
 ## Data Persistence
 
